@@ -1,0 +1,6 @@
+@Asan_Campus_HostAddress = http://localhost:5231
+
+GET {{Asan_Campus_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
