@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Numerics;
 using System.Security.Claims;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Asan_Campus.Controllers
 {
@@ -269,7 +271,51 @@ namespace Asan_Campus.Controllers
 
             return Ok(result);
         }
+        [HttpGet("GetProfileInfo")]
+        public IActionResult GetProfileInfo()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("Invalid token");
+            }
 
+            object userInfo = null;
+
+            if (User.IsInRole("ADMIN"))
+            {
+                userInfo = _context.Users
+                    .Where(w => w.Id == userId)
+                    .Select(w => new
+                    {
+                        AdminID= "ADMIN-001",
+                        Email=w.Email,
+                        Phone="03303189922",
+                       
+                    })
+                    .FirstOrDefault();
+            }
+            else if (User.IsInRole("STUDENT"))
+            {
+                userInfo = _context.Students
+                    .Include(s => s.User)  // Load the related User data
+                    .Where(s => s.UserId == userId)
+                    .Select(s => new
+                    {
+                        AdminID = s.EndrollementNo,
+                        Email = s.User.Email,
+                        Phone =s.Phone,// Access email from the included User
+                      
+                    })
+                    .FirstOrDefault();
+            }
+            if (userInfo == null)
+            {
+                return NotFound("User not found");
+            }
+
+            return Ok(userInfo);
+        }
 
 
 

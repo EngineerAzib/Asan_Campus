@@ -2,6 +2,7 @@
 using Asan_Campus.Service;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using static Asan_Campus.Model.InputClass;
 
 namespace Asan_Campus.Controllers
@@ -23,12 +24,15 @@ namespace Asan_Campus.Controllers
         {
             var res = new Notification()
             {
-                IsRead = notification.IsRead,
+                IsRead = false,
                 Message = notification.Message,
-                Priority = notification.Priority,
+                //Priority = notification.Priority,
                 Timestamp = notification.Timestamp,
+                 date=notification.date,
                 Title = notification.Title,
                 Type = notification.Type,
+                SemesterID=notification.semesterId,
+                 DepartmentID=notification.departmentId,
             };
             _context.Notifications.Add(res);
             _context.SaveChanges();
@@ -38,6 +42,23 @@ namespace Asan_Campus.Controllers
         public IActionResult GetNotification()
         {
             var res = _context.Notifications.ToList();
+            return Ok(res);
+        }
+        [HttpGet("GetStudentNotification")]
+        public IActionResult GetStudentNotification()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier).Value ?? null;
+            if (userId == null)
+            {
+                return NotFound("Token Not Found");
+
+            }
+            var std = _context.Students.Where(x => x.UserId == userId).FirstOrDefault();
+            if (std == null)
+            {
+                return NotFound("User Not Found");
+            }
+            var res = _context.Notifications.Where(w=>w.SemesterID== std.Semester && w.DepartmentID==std.DepartmentId).ToList();
             return Ok(res);
         }
 

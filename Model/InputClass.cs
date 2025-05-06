@@ -269,19 +269,37 @@ namespace Asan_Campus.Model
         {
            
 
-            public bool IsRead { get; set; }
+      
 
             public string Message { get; set; }
 
-            public string Priority { get; set; }
+           
 
             public DateTime Timestamp { get; set; }
 
             public string Title { get; set; }
 
             public string Type { get; set; }
+            public int semesterId { get; set; }
+            public int departmentId { get; set; }
+            public string date { get; set; }
         }
+        public class DeviceRegistrationDto
+        {
+            public int StudentId { get; set; }
+            public string ExpoPushToken { get; set; }
+        }
+        public class AddReg
+        {
+            
+          
 
+           public List<string> courses { get; set; }
+            public string semester { get; set; }
+           
+           
+          
+        }
 
 
     }

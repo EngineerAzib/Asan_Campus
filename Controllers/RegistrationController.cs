@@ -132,6 +132,81 @@ namespace Asan_Campus.Controllers
 
             return Ok(data);
         }
+       
+        [HttpPost("create_Reg")]
+        public IActionResult create_Reg(AddReg addreg)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        message = "Invalid token"
+                    });
+                }
+
+                var student = _context.Students.FirstOrDefault(s => s.UserId == userId);
+                if (student == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Student not found"
+                    });
+                }
+
+                var registeredCourses = new List<object>();
+
+                foreach (var item in addreg.courses)
+                {
+                    var course = _context.Courses.FirstOrDefault(w => w.InitialName == item);
+                    if (course == null) continue;
+
+                    var academicDetail = new AcadmicDetail()
+                    {
+                        courseId = course.Id,
+                        complete = false,
+                        studentId = student.Id,
+                        gpa = 0,
+                        grade = "",
+                        semesterId = int.Parse(addreg.semester)
+                    };
+
+                    _context.AcadmicDetails.Add(academicDetail);
+                    registeredCourses.Add(new
+                    {
+                        courseCode = course.InitialName,
+                        courseName = course.Name,
+                        creditHours = course.Credits
+                    });
+                }
+
+                _context.SaveChanges();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Registration completed successfully",
+                    studentId = student.Id,
+                    semester = addreg.semester,
+                    registeredCourses = registeredCourses,
+                    totalCourses = registeredCourses.Count,
+                   // totalCreditHours = registeredCourses.Sum(c => (int)((dynamic)c).Credits)
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "An error occurred during registration",
+                    error = ex.Message
+                });
+            }
+        }
 
     }
 }

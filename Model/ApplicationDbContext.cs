@@ -35,6 +35,7 @@ namespace Asan_Campus.Model
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<CourseSchedule> CourseSchedules { get; set; }
         public DbSet<RevokedToken> RevokedTokens { get; set; }
+        public DbSet<UserDevice> UserDevices { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

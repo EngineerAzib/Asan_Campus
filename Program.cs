@@ -16,7 +16,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddTransient<ImplementationSevices>();
 builder.Services.AddTransient<ImageHelper>();
 builder.Services.AddScoped<ITokenValidator, TokenValidator>();
-
+builder.Services.AddHostedService<NotificationBackgroundService>();
+builder.Services.AddHttpClient();
 
 // Add services to the container.
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
