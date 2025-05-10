@@ -30,6 +30,7 @@ namespace Asan_Campus.Controllers
             var res = _context.Teachers.Select(x => new
             {
                 x.Id,
+                x.Name,
                 x.designation,
                 department=x.Department.DepartmentName
             }).ToList();

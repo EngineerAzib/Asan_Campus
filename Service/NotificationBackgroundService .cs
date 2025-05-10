@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Asan_Campus.Service
 {
-    // Services/NotificationBackgroundService.cs
     public class NotificationBackgroundService : BackgroundService
     {
         private readonly IServiceProvider _services;
         private readonly ILogger<NotificationBackgroundService> _logger;
+        private const int IntervalMinutes = 2; // Run every 2 minutes
 
         public NotificationBackgroundService(
             IServiceProvider services,
@@ -25,27 +25,26 @@ namespace Asan_Campus.Service
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                var now = DateTime.Now;
-                var nextRun = now.Date.AddDays(1); // Next day at midnight
-
-                if (now > now.Date)
+                try
                 {
-                    nextRun = nextRun.AddDays(1);
-                }
-
-                var delay = nextRun - now;
-                _logger.LogInformation($"Next run at: {nextRun}");
-
-                await Task.Delay(delay, stoppingToken);
-
-                if (!stoppingToken.IsCancellationRequested)
-                {
+                    _logger.LogInformation($"Starting notification check at: {DateTime.Now}");
                     await SendDailyNotifications();
+                    _logger.LogInformation($"Notification check completed. Waiting {IntervalMinutes} minutes...");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error occurred during notification processing");
+                }
+                finally
+                {
+                    // Wait for 2 minutes before next execution
+                    await Task.Delay(TimeSpan.FromMinutes(IntervalMinutes), stoppingToken);
                 }
             }
         }
 
         private async Task SendDailyNotifications()
+        
         {
             using var scope = _services.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

@@ -19,6 +19,13 @@ namespace Asan_Campus.Controllers
             var res=_context.Semesters.ToList();
             return Ok(res);
         }
+        [HttpGet("GetSemesterStudent")]
+        public IActionResult GetSemesterStudent(int studentId)
+        {
+            int semesterId = _context.Students.Where(x => x.Id == studentId).Select(x => x.Semester).FirstOrDefault();
+            var res = _context.Semesters.Where(w=>w.Id== semesterId).ToList();
+            return Ok(res);
+        }
 
         [HttpGet("GetSemesterDepartment")]
         public IActionResult GetDepartmentsWithSemesters()

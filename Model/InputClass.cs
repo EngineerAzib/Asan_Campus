@@ -15,10 +15,11 @@ namespace Asan_Campus.Model
             public int DepartmentId { get; set; }
             public int SemesterId { get; set; }
             public int teacherId { get; set; }
-            public string? startDate { get; set; }
-            public string? endDate { get; set; }
-            public string? days { get; set; }
+         
+            public string? day { get; set; }
             public List<int> PrerequisiteIds { get; set; }
+           
+            public string type { get; set; }
         }
         public class AddStudent
         {
@@ -286,7 +287,7 @@ namespace Asan_Campus.Model
         }
         public class DeviceRegistrationDto
         {
-            public int StudentId { get; set; }
+            public string userId { get; set; }
             public string ExpoPushToken { get; set; }
         }
         public class AddReg

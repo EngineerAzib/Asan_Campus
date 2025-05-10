@@ -35,13 +35,23 @@ namespace Asan_Campus.Controllers
                 SemesterId = request.SemesterId,
                 InitialName=request.InitialName,
                 TeacherId=request.teacherId,
+                type=request.type
                 //startDate = request.startDate,
                 //endDate = request.endDate,
                 //days =request.days
             };
             _context.Courses.Add(course);
             _context.SaveChanges();
-
+            var courseSchedule = new CourseSchedule
+            {
+                 courseId=course.Id,
+                  days= request.day,
+                startTime = "empty",
+                endTime = "empty",
+                room = "empty"
+            };
+            _context.CourseSchedules.Add(courseSchedule);
+            _context.SaveChanges();
             // Add prerequisites if any
             if (request.PrerequisiteIds != null && request.PrerequisiteIds.Any())
             {
@@ -105,5 +115,23 @@ namespace Asan_Campus.Controllers
                 }).ToList();
             return Ok(res);
         }
+        [HttpGet("GetCoursebyStudent")]
+        public IActionResult GetAllCourse(int studentId)
+        {
+            int semesterId=_context.Students.Where(x=>x.Id==studentId).Select(x=>x.Semester).FirstOrDefault();
+            var res = _context.AcadmicDetails.Include(w=>w.course).Where(x=>x.studentId==studentId && x.semesterId==semesterId && x.complete==false).Select(
+                x => new
+                {
+                    x.course.Id,
+                    x.course.Name
+
+
+
+
+                }).ToList();
+            return Ok(res);
+        }
+
+
     }
 }

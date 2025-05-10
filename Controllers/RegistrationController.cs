@@ -53,7 +53,7 @@ namespace Asan_Campus.Controllers
                     maxStudents=x.MaxStudent,
                     prerequisites=x.Course.Prerequisites.Select(x=>x.Course.Name).ToList(),
                 }
-            });
+            }).ToList();
             return Ok(res);
         }
 
@@ -62,28 +62,50 @@ namespace Asan_Campus.Controllers
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
-            {
                 return Unauthorized("Invalid token");
-            }
 
             var student = _context.Students.FirstOrDefault(s => s.UserId == userId);
             if (student == null)
-            {
                 return NotFound("Student not found");
-            }
 
-            var data = _context.SemesterRegistration
-                .Where(x => x.DepartmentID == student.DepartmentId && x.SemesterID == student.Semester)
+            // All course IDs that were attempted by the student
+            var allAttemptedCourseIds = _context.AcadmicDetails
+                .Where(x => x.studentId == student.Id)
+                .Select(x => x.courseId)
+                .ToHashSet();
+
+            // All courses attempted with GPA 0 (these must be excluded no matter what)
+            var gpaZeroCourseIds = _context.AcadmicDetails
+                .Where(x => x.studentId == student.Id && x.gpa == 0)
+                .Select(x => x.courseId)
+                .ToHashSet();
+
+            // Courses that should show for registration:
+            // - Either never attempted
+            // - OR previously attempted with GPA > 0 and <= 3
+            var validRetakeCourseIds = _context.AcadmicDetails
+                .Where(x => x.studentId == student.Id && x.gpa <= 3 && x.gpa > 0)
+                .Select(x => x.courseId)
+                .ToHashSet();
+
+            var eligibleCourses = _context.SemesterRegistration
+                .Where(x =>
+                    x.DepartmentID == student.DepartmentId &&
+                    x.SemesterID == student.Semester &&
+                    (
+                        !allAttemptedCourseIds.Contains(x.Course.Id) ||           // Never registered
+                        validRetakeCourseIds.Contains(x.Course.Id)               // Retake allowed (GPA ≤ 3 and > 0)
+                    ) &&
+                    !gpaZeroCourseIds.Contains(x.Course.Id)                      // Exclude all with GPA = 0
+                )
                 .Include(x => x.Department)
                 .Include(x => x.Semester)
-                .Include(x => x.Course)
-                    .ThenInclude(c => c.Teacher)
-                .Include(x => x.Course)
-                    .ThenInclude(c => c.Prerequisites)
-                        .ThenInclude(p => p.PrerequisiteCourse)
-                .Include(x => x.Course)
-                    .ThenInclude(c => c.CourseSchedules)
-                .ToList()
+                .Include(x => x.Course).ThenInclude(c => c.Teacher)
+                .Include(x => x.Course).ThenInclude(c => c.Prerequisites).ThenInclude(p => p.PrerequisiteCourse)
+                .Include(x => x.Course).ThenInclude(c => c.CourseSchedules)
+                .ToList();
+
+            var data = eligibleCourses
                 .GroupBy(x => x.Department.DepartmentCode)
                 .ToDictionary(deptGroup => deptGroup.Key, deptGroup => new
                 {
@@ -99,7 +121,6 @@ namespace Asan_Campus.Controllers
                             courses = semGroup.Select(c =>
                             {
                                 var scheduleEntry = c.Course.CourseSchedules.FirstOrDefault();
-
                                 return new
                                 {
                                     code = c.Course.InitialName,
@@ -107,22 +128,14 @@ namespace Asan_Campus.Controllers
                                     creditHours = c.Course.Credits,
                                     type = c.Course.type,
                                     instructor = c.Course.Teacher?.Name ?? "Teacher",
-
                                     maxStudents = c.MaxStudent,
-                                    prerequisites = c.Course.Prerequisites != null
-                                        ? c.Course.Prerequisites.Select(p => p.PrerequisiteCourse.InitialName).ToList()
-                                        : new List<string>(),
-
+                                    prerequisites = c.Course.Prerequisites?.Select(p => p.PrerequisiteCourse.InitialName).ToList() ?? new List<string>(),
                                     schedule = new
                                     {
-                                        days = !string.IsNullOrEmpty(scheduleEntry?.days)
-                                            ? scheduleEntry.days.Split(',')
-                                            : new string[] { },
-
+                                        days = !string.IsNullOrEmpty(scheduleEntry?.days) ? scheduleEntry.days.Split(',') : new string[] { },
                                         time = (!string.IsNullOrEmpty(scheduleEntry?.startTime) && !string.IsNullOrEmpty(scheduleEntry?.endTime))
                                             ? $"{scheduleEntry.startTime} - {scheduleEntry.endTime}"
                                             : "Time not available",
-
                                         room = scheduleEntry?.room ?? "Room not assigned"
                                     }
                                 };
@@ -132,7 +145,9 @@ namespace Asan_Campus.Controllers
 
             return Ok(data);
         }
-       
+
+
+
         [HttpPost("create_Reg")]
         public IActionResult create_Reg(AddReg addreg)
         {

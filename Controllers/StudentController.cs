@@ -122,7 +122,7 @@ namespace Asan_Campus.Controllers
                 academics,
                 attendance,
             });
-        }
+         }
         [HttpGet("GetCurrentSemester")]
         public IActionResult GetCurrentSemester(int stdid)
         {
@@ -136,7 +136,7 @@ namespace Asan_Campus.Controllers
         [HttpGet("GetCurrentCourse")]
         public IActionResult GetCurrentCourse(int stdid,int semid)
         {
-            var res = _context.AcadmicDetails.Where(w => w.studentId == stdid && w.semesterId== semid).Include(x => x.course).Select(x=>new
+            var res = _context.AcadmicDetails.Include(x=>x.course).Where(w => w.studentId== stdid && w.semesterId==semid && w.complete==false).Select(x=>new
             {
                 x.course.Name,
                 x.course.Id,

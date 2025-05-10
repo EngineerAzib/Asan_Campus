@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using System.Linq;
 using System.Security.Claims;
 using static Asan_Campus.Model.InputClass;
@@ -32,34 +33,68 @@ namespace Asan_Campus.Controllers
                     return BadRequest(new { success = false, message = "No academic details provided." });
                 }
 
-                List<AcadmicDetail> academicDetails = new List<AcadmicDetail>();
-
                 foreach (var item in addAcedemic.AcadmicDetail)
                 {
-                    var academic = new AcadmicDetail()
-                    {
-                        semesterId = addAcedemic.semesterId,
-                        studentId = addAcedemic.studentId,
-                        courseId = item.courseId,
-                        gpa = item.gpa,
-                        grade = _implementationSevices.Grade(item.gpa),
-                        complete = _implementationSevices.Icomplete(item.gpa)
-                    };
+                    var existingRecord = _context.AcadmicDetails
+                        .FirstOrDefault(x => x.studentId == addAcedemic.studentId &&
+                                             x.courseId == item.courseId &&
+                                             x.semesterId == addAcedemic.semesterId);
 
-                    academicDetails.Add(academic);
+                    if (existingRecord != null)
+                    {
+                        existingRecord.gpa = item.gpa;
+                        existingRecord.grade = _implementationSevices.Grade(item.gpa);
+                        existingRecord.complete = _implementationSevices.Icomplete(item.gpa);
+                    }
+                    else
+                    {
+                        var newAcademic = new AcadmicDetail()
+                        {
+                            semesterId = addAcedemic.semesterId,
+                            studentId = addAcedemic.studentId,
+                            courseId = item.courseId,
+                            gpa = item.gpa,
+                            grade = _implementationSevices.Grade(item.gpa),
+                            complete = _implementationSevices.Icomplete(item.gpa)
+                        };
+                        _context.AcadmicDetails.Add(newAcademic);
+                    }
                 }
 
-                _context.AcadmicDetails.AddRange(academicDetails);
                 _context.SaveChanges();
 
-                // ✅ Return a JSON response
-                return Ok(new { success = true, message = "Successfully Added" });
+                // ✅ Check if all courses for this student and semester are marked complete
+                var allCourses = _context.AcadmicDetails
+                    .Where(x => x.studentId == addAcedemic.studentId && x.semesterId == addAcedemic.semesterId)
+                    .ToList();
+
+                bool allComplete = allCourses.All(x => x.complete == true);
+
+                if (allComplete)
+                {
+                    double avgGpa = allCourses.Average(x => x.gpa);
+
+                    if (avgGpa > 1)
+                    {
+                        var student = _context.Students.FirstOrDefault(s => s.Id == addAcedemic.studentId);
+                        if (student != null)
+                        {
+                            student.Semester += 1; // increment semester by 1
+                            _context.SaveChanges();
+                        }
+
+                    }
+                }
+
+                return Ok(new { success = true, message = "Academic details successfully updated." });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+
 
         [HttpPost("AddAttendance")]
         public IActionResult AddAttendance(AddAttendance addAttendance)
@@ -136,6 +171,7 @@ namespace Asan_Campus.Controllers
             {
                 return NotFound("Student not found");
             }
+
             // Get all academic records for the student
             var academicRecords = _context.AcadmicDetails
                 .Where(x => x.studentId == student.Id)
@@ -155,26 +191,65 @@ namespace Asan_Campus.Controllers
                 .Select(g => new
                 {
                     number = g.Key.Id,
-                    // Get the completed status from the first record in the group
                     completed = g.First().complete, // Accessing from AcadmicDetail
                     gpa = g.Average(x => x.gpa),
-                    courses = g.Select(x => new
-                    {
-                        id = x.course.Id,
-                        code = x.course.InitialName,
-                        name = x.course.Name,
-                        creditHours = x.course.Credits,
-                        instructor = x.course.Teacher?.Name,
-                        
-                        grade = x.grade,
-                        status = (x.complete ?? false) ? "completed" : "in-progress",
-                        progress = (x.complete ?? false) ? 100 : 0,
-                        schedule = new
+                    courses = g.Select(x => {
+                        // Parse the schedule JSON if it exists
+                        var scheduleJson = x.course.CourseSchedules.FirstOrDefault().days;
+                        Dictionary<string, dynamic> scheduleDict = null;
+                        List<string> days = new List<string>();
+                        List<string> times = new List<string>();
+
+                        if (!string.IsNullOrEmpty(scheduleJson))
                         {
-                            days = x.course.CourseSchedules.FirstOrDefault()?.days?.Split(','),
-                            time = $"{x.course.CourseSchedules.FirstOrDefault()?.startTime} - {x.course.CourseSchedules.FirstOrDefault()?.endTime}",
-                            room = x.course.CourseSchedules.FirstOrDefault()?.room
+                            try
+                            {
+                                scheduleDict = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(scheduleJson);
+                                if (scheduleDict != null)
+                                {
+                                    foreach (var item in scheduleDict)
+                                    {
+                                        days.Add(item.Value.day.ToString());
+                                        times.Add($"{item.Value.startTime} - {item.Value.endTime}");
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                // If JSON parsing fails, fall back to original format
+                                days = x.course.CourseSchedules.FirstOrDefault()?.days?.Split(',').ToList();
+                                times = new List<string> {
+                            $"{x.course.CourseSchedules.FirstOrDefault()?.startTime} - {x.course.CourseSchedules.FirstOrDefault()?.endTime}"
+                                };
+                            }
                         }
+                        else
+                        {
+                            // Handle case where schedule is in old format
+                            days = x.course.CourseSchedules.FirstOrDefault()?.days?.Split(',').ToList();
+                            times = new List<string> {
+                        $"{x.course.CourseSchedules.FirstOrDefault()?.startTime} - {x.course.CourseSchedules.FirstOrDefault()?.endTime}"
+                            };
+                        }
+
+                        return new
+                        {
+                            id = x.course.Id,
+                            code = x.course.InitialName,
+                            name = x.course.Name,
+                            creditHours = x.course.Credits,
+                            instructor = x.course.Teacher?.Name,
+                            grade = x.grade,
+                            status = (x.complete ?? false) ? "completed" : "in-progress",
+                            progress = (x.complete ?? false) ? 100 : 0,
+                            schedule = new
+                            {
+                                days = days,
+                                time = times.Count > 0 ? string.Join(", ", times) : null,
+                                allTimes = times, // Include all times if needed
+                                room = x.course.CourseSchedules.FirstOrDefault()?.room
+                            }
+                        };
                     }).ToList()
                 })
                 .OrderBy(x => x.number)
@@ -183,11 +258,11 @@ namespace Asan_Campus.Controllers
             // Get current semester (most recent incomplete one)
             var currentSemester = semesters
                 .OrderByDescending(s => s.number)
-                .FirstOrDefault(s => !s.completed??false);
+                .FirstOrDefault(s => !s.completed ?? false);
 
             // Get all completed semesters
             var allSemesters = semesters
-                .Where(s => s.completed??false)
+                .Where(s => s.completed ?? false)
                 .OrderBy(s => s.number)
                 .ToList();
 
@@ -220,8 +295,8 @@ namespace Asan_Campus.Controllers
 
             return Ok(response);
         }
-       
-            [HttpGet("student-academics")]
+
+        [HttpGet("student-academics")]
             public async Task<IActionResult> GetStudentAcademics()
             {
                 try

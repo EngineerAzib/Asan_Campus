@@ -163,11 +163,18 @@ namespace Asan_Campus.Service
 
         public dynamic CourseAttendance(int stdId)
         {
+            // ✅ Get courseIds that are NOT complete
+            var incompleteCourseIds = _context.AcadmicDetails
+                .Where(x => x.studentId == stdId && x.complete==false)
+                .Select(x => x.courseId)
+                .ToList();
+
+            // ✅ Now fetch attendance only for incomplete courses
             var attendanceData = _context.StudentAttendances
-                .Where(sa => sa.StudentID == stdId)
+                .Where(sa => sa.StudentID == stdId && incompleteCourseIds.Contains(sa.CourseID))
                 .Include(sa => sa.Course)
                 .Include(sa => sa.Semester)
-                .GroupBy(sa => sa.CourseID) // Group by semester
+                .GroupBy(sa => sa.CourseID)
                 .Select(group => new
                 {
                     CurrentSemester = new
@@ -185,11 +192,12 @@ namespace Asan_Campus.Service
                         }).ToList()
                     }
                 })
-                .OrderByDescending(s => s.CurrentSemester.SemesterID) // Get the latest semester
-                .FirstOrDefault();
+                .OrderByDescending(s => s.CurrentSemester.SemesterID)
+                .ToList();
 
-            return attendanceData ;
+            return attendanceData;
         }
+
         public string Grade(double gpa)
         {
             if (gpa >= 2.0 && gpa <= 2.4)
@@ -212,14 +220,15 @@ namespace Asan_Campus.Service
 
         public bool Icomplete(double gpa)
         {
-            if (gpa >= 2)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            //if (gpa >= 2)
+            //{
+            //    return true;
+            //}
+            //else
+            //{
+            //    return false;
+            //}
+            return true;
           
         }
 

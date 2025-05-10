@@ -25,10 +25,15 @@ namespace Asan_Campus.Controllers
 
             var existingDevice =  _context.UserDevices
                 .FirstOrDefault(d => d.ExpoPushToken == dto.ExpoPushToken);
+            var student = _context.Students.Where(w => w.UserId == dto.userId).Select(w=>w.Id).FirstOrDefault();
+            if (student == 0)
+            {
+                return Ok();
+            }
 
             if (existingDevice != null)
             {
-                existingDevice.StudentId = dto.StudentId;
+                existingDevice.StudentId = student;
                 existingDevice.LastUpdated = DateTime.UtcNow;
             }
             else
@@ -36,7 +41,7 @@ namespace Asan_Campus.Controllers
                 var newDevice = new UserDevice
                 {
                     ExpoPushToken = dto.ExpoPushToken,
-                    StudentId = dto.StudentId
+                    StudentId = student
                 };
                 _context.UserDevices.Add(newDevice);
             }
