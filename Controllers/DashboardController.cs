@@ -205,8 +205,12 @@ namespace Asan_Campus.Controllers
                 name = x.course.Name,
                 status = x.complete == true ? "Complete" : "Not Complete"
             }).ToList();
+            var department = _context.Departments.Where(x => x.Id == student.DepartmentId).Select(w => w.DepartmentName).FirstOrDefault();
             var result = new
             {
+                name=student.Name+" "+student.Father_Name,
+                semesters = student.Semester + " Semester",
+                department = department,
                 semester = latestSemester?.semesterId ?? 0,
                 year = latestSemester.students.RollNo,
                 progress = (int)Math.Round(((double)completedCredits / (totalCredits == 0 ? 1 : totalCredits)) * 100),

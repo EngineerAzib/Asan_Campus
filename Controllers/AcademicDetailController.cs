@@ -324,14 +324,20 @@ namespace Asan_Campus.Controllers
                         .Include(x => x.course)
                         .OrderBy(x => x.semesterId)
                         .ToListAsync();
+                var academicRecordsgpa = await _context.AcadmicDetails
+                       .Where(x => x.students.Id == student.Id && x.complete==true) 
+                       .Include(x => x.semester)
+                       .Include(x => x.course)
+                       .OrderBy(x => x.semesterId)
+                       .ToListAsync();
 
-                    if (!academicRecords.Any())
+                if (!academicRecords.Any())
                     {
                         return NotFound("No academic records found");
                     }
 
                     // Calculate overall CGPA and total credits
-                    var completedRecords = academicRecords.Where(x => x.grade!= null).ToList();
+                    var completedRecords = academicRecordsgpa.Where(x => x.grade!= null).ToList();
                     var currentCGPA = completedRecords.Any() ? completedRecords.Average(x => x.gpa) : 0;
                     var totalCredits = completedRecords.Sum(x => x.course.Credits);
 

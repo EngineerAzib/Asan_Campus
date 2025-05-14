@@ -129,8 +129,14 @@ namespace Asan_Campus.Service
                 .Include(x => x.students)
                 .Include(x => x.course)
                 .ToList();
+            var academicDetailsgpas = _context.AcadmicDetails
+               .Where(x => x.studentId == stdId && x.complete == true)
+               .Include(x => x.semester)
+               .Include(x => x.students)
+               .Include(x => x.course)
+               .ToList();
 
-            if (!academicDetails.Any()) // Check if academicDetails is empty
+            if (!academicDetailsgpas.Any()) // Check if academicDetails is empty
             {
                 return new { currentCGPA = 0.0, semesterGPAs = new List<object>() };
             }
@@ -153,7 +159,7 @@ namespace Asan_Campus.Service
 
             var response = new
             {
-                currentCGPA = academicDetails.Any() ? academicDetails.Average(x => x.gpa) : 0.0, // Handle empty list
+                currentCGPA = academicDetailsgpas.Any() ? academicDetailsgpas.Average(x => x.gpa) : 0.0, // Handle empty list
                 semesterGPAs = groupedData
             };
 
