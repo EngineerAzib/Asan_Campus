@@ -435,7 +435,7 @@ namespace Asan_Campus.Controllers
                     }
                 })
 
-                .FirstOrDefault();
+                .ToList();
 
             return Ok(attendanceData);
         }
