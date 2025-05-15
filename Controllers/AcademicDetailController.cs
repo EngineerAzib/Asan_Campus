@@ -396,6 +396,7 @@ namespace Asan_Campus.Controllers
                 }
             }
         [HttpGet("GetStudentAttendance")]
+      
         public IActionResult GetStudentAttendance()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -404,7 +405,6 @@ namespace Asan_Campus.Controllers
                 return Unauthorized("Invalid token");
             }
 
-            // Find student
             var student = _context.Students
                 .FirstOrDefault(s => s.UserId == userId);
 
@@ -412,16 +412,16 @@ namespace Asan_Campus.Controllers
             {
                 return NotFound("Student not found");
             }
+
             var attendanceData = _context.StudentAttendances
                 .Where(sa => sa.StudentID == student.Id && sa.Semester.Id == student.Semester)
                 .Include(sa => sa.Course)
                 .Include(sa => sa.Semester)
-                .GroupBy(sa => sa.CourseID) // Group by semester
+                .GroupBy(sa => sa.CourseID)
                 .Select(group => new
                 {
                     semester = new
                     {
-
                         OverallAttendance = group.Sum(sa => sa.AttendedClasses) * 100.0 / group.Sum(sa => sa.TotalClasses),
                         Courses = group.Select(sa => new
                         {
@@ -430,16 +430,16 @@ namespace Asan_Campus.Controllers
                             sa.Course.Name,
                             sa.TotalClasses,
                             sa.AttendedClasses,
-                            Percentage = sa.TotalClasses == 0 ? 0 : (double)sa.AttendedClasses / sa.TotalClasses * 100
+                            Percentage = Math.Round((sa.TotalClasses == 0 ? 0 :
+                                (double)sa.AttendedClasses / sa.TotalClasses * 100), 2) // Only this line changed
                         }).ToList()
                     }
                 })
-
                 .ToList();
 
             return Ok(attendanceData);
         }
-            [HttpGet("GetStudentAttendanceByCourse")]
+        [HttpGet("GetStudentAttendanceByCourse")]
             public IActionResult GetStudentAttendanceByCourse()
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
