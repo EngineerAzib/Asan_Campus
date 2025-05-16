@@ -22,21 +22,38 @@ namespace Asan_Campus.Controllers
         [HttpPost("AddNotification")]
         public IActionResult AddNotification(AddNotification notification)
         {
-            var res = new Notification()
+            try
             {
-                IsRead = false,
-                Message = notification.Message,
-                //Priority = notification.Priority,
-                Timestamp = notification.Timestamp,
-                 date=notification.date,
-                Title = notification.Title,
-                Type = notification.Type,
-                SemesterID=notification.semesterId,
-                 DepartmentID=notification.departmentId,
-            };
-            _context.Notifications.Add(res);
-            _context.SaveChanges();
-            return Ok("Add Successfully");
+                var res = new Notification()
+                {
+                    IsRead = false,
+                    Message = notification.Message,
+                    Timestamp = notification.Timestamp,
+                    date = notification.date,
+                    Title = notification.Title,
+                    Type = notification.Type,
+                    SemesterID = notification.semesterId,
+                    DepartmentID = notification.departmentId,
+                };
+
+                _context.Notifications.Add(res);
+                _context.SaveChanges();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Notification created successfully",
+                    data = res // optional: you can include the created notification
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
         }
         [HttpGet("GetNotification")]
         public IActionResult GetNotification()
